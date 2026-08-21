@@ -1,0 +1,5 @@
+# dsh-update-checker bundle 层：注册 host 行 + client roster。
+- insert:
+    - id: dsh-update-checker
+      name: '@dsh-external/dsh-update-checker'
+      config: {}

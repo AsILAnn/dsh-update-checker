@@ -1,0 +1,6 @@
+node_modules/
+*.tgz
+.DS_Store
+*.bak*
+_edge_probe/
+CODEX_TASK.md
