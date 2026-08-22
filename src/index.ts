@@ -68,7 +68,7 @@ function buildStatus(local: string | null, latest: string | null, next: string |
 }
 function sendJson(res: any, code: number, body: unknown): void { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)) }
 
-/** 后台执行 npm 更新，完成后自动杀旧进程 + 启动新版 dsh */
+/** 后台执行 npm 更新，完成后杀 dsh 服务进程，Electron 主进程自动重启新版 */
 function runUpdateAndRestart(): void {
   const child = spawn('cmd.exe', ['/c', 'npm i -g @deepseek-ai/dsh@latest'], {
     stdio: 'ignore',
@@ -78,10 +78,10 @@ function runUpdateAndRestart(): void {
   child.unref()
   child.on('exit', (code) => {
     if (code !== 0) return
-    // 更新成功：杀当前 dsh 进程（自己），2秒后新版 dsh 会被桌面版重新拉起
+    // npm 成功后等 3 秒让文件写入完成，再杀 dsh 服务进程
     setTimeout(() => {
-      try { process.kill(process.pid, 'SIGTERM') } catch {}
-    }, 2000)
+      try { process.exit(0) } catch {}
+    }, 3000)
   })
   child.on('error', () => {})
 }
@@ -92,7 +92,7 @@ export function apply(ctx: Context): void {
     if (req.method === 'GET' && p.endsWith('/check')) { const local = readLocalVersion(); const { latest, next, error } = await fetchDistTags(); const status = buildStatus(local, latest, next, error); const target = (latest && local && compare(local, latest) < 0) ? latest : next; const changelog = await fetchChangelog(target); return sendJson(res, 200, { ok: true, localVersion: local, latest, next, error, status, changelog }) }
     if (req.method === 'POST' && p.endsWith('/update')) {
       // 先响应客户端，再后台更新+重启（避免白屏）
-      sendJson(res, 200, { ok: true, message: '更新中，dsh 将自动重启，请稍候…' })
+      sendJson(res, 200, { ok: true, message: '更新已开始，dsh 将自动重启，请稍候…' })
       runUpdateAndRestart()
       return
     }
