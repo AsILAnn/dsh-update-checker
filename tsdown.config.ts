@@ -1,4 +1,17 @@
 import { fileURLToPath } from 'node:url'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
+/** 构建戳：插件版本 + 构建时间，注入客户端（__DUC_BUILD__），用于辨认服务器实际下发的产物 */
+const PKG_VERSION = (() => {
+  for (const p of [join(process.cwd(), 'package.json'), 'package.json']) {
+    try { return String(JSON.parse(readFileSync(p, 'utf8')).version || '0.0.0') } catch { }
+  }
+  return '0.0.0'
+})()
+const pad2 = (n: number) => String(n).padStart(2, '0')
+const _bd = new Date()
+const BUILD_STAMP = PKG_VERSION + '+' + _bd.getFullYear() + pad2(_bd.getMonth() + 1) + pad2(_bd.getDate()) + '-' + pad2(_bd.getHours()) + pad2(_bd.getMinutes())
 
 const PLUGIN_ID = '@dsh-external/dsh-update-checker'
 
@@ -37,6 +50,7 @@ const clientBundle = {
   clean: false,
   define: {
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV ?? 'production'),
+    '__DUC_BUILD__': JSON.stringify(BUILD_STAMP),
   },
   deps: {
     neverBundle: [...CLIENT_EXTERNALS],
