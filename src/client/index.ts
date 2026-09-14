@@ -41,10 +41,6 @@ const ANIM_CSS = [
   '.dsh-upd-ink2{color:var(--dsw-alias-label-secondary,#7f8287)}',
   '.dsh-upd-ink3{color:var(--dsw-alias-label-tertiary,#a2a4a6)}',
   '.dsh-upd-rule{background:var(--dsw-alias-border-l2,rgba(84,85,87,.25))}',
-  // 文字按钮：一级「查看上次结果」入口（二级页不放返回按钮，切走设置页再回来即回一级）
-  '.dsh-upd-link{padding:8px 4px;border:none;background:transparent;color:var(--dsw-alias-label-secondary,#7f8287);font-size:12px;font-family:inherit;cursor:pointer;transition:color .15s ease,opacity .15s ease}',
-  '.dsh-upd-link:hover:not(:disabled){color:var(--dsw-alias-label-primary,#545557)}',
-  '.dsh-upd-link:disabled{cursor:default;opacity:.4}',
   // 注：不加 prefers-reduced-motion 门 —— 用户系统关闭'动画效果'时浏览器会上报
   // reduce，会把本插件全部 CSS 动画杀成静态（实测）。这些动画本身极小、无眩晕风险。
 ].join('')
@@ -390,7 +386,6 @@ function UpdatePage() {
   const showUpdateBtn = status?.code === 'outdated'
   /* 两级视图判定：entry = 一级入口；result = 二级结果 */
   const entry = view === 'entry'
-  const hasResult = !!(data || status)
   const buildStamp = typeof __DUC_BUILD__ === 'undefined' ? 'dev' : String(__DUC_BUILD__)
   const shell = { fontFamily: 'inherit', fontSize: 12, lineHeight: 1.6, padding: '14px 16px', maxWidth: 640 }
   const styleTag = React.createElement('style', { dangerouslySetInnerHTML: { __html: ANIM_CSS } })
@@ -426,9 +421,7 @@ function UpdatePage() {
           style: { fontSize: 12, marginTop: 8, color: outdated ? BAD : undefined },
           title: info && info.installDir ? '安装目录：' + info.installDir : undefined,
         }, note)),
-      React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 24 } },
-        checkBtn,
-        hasResult ? React.createElement('button', { className: 'dsh-upd-link', onClick: () => setView('result') }, '查看上次结果 →') : null))
+      React.createElement('div', { style: { marginTop: 24 } }, checkBtn))
   }
   /* ---------- 二级：结果态（对齐截图 2） ---------- */
   return React.createElement('div', { style: shell },
