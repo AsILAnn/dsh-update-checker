@@ -373,7 +373,6 @@ function UpdatePage() {
     '检查本机安装的 dsh 是否为官方最新版本；发现新版本时，可直接一键升级。')
   const checkBtn = React.createElement('button', { className: 'dsh-upd-btn', disabled: busy || updating, onClick: () => check() },
     busy ? React.createElement(Spinner, { size: 13 }) : null, busy ? '检查中…' : (entry || !data ? '检查更新' : '重新检查'))
-  const lastCheckHint = lastCheck ? React.createElement('span', { style: { marginLeft: 'auto', fontSize: 11, color: 'var(--dsw-alias-label-tertiary,#a2a4a6)' } }, '上次检查：' + agoText(lastCheck)) : null
 
   /* ---------- 一级：入口态（对齐截图 1） ---------- */
   if (entry) {
@@ -407,8 +406,7 @@ function UpdatePage() {
     React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 14 } },
       checkBtn,
       showUpdateBtn && !busy ? React.createElement('button', { className: 'dsh-upd-btn dsh-upd-btn-primary', disabled: updating, onClick: doUpdate },
-        updating ? React.createElement(Spinner, { size: 13 }) : null, updating ? '更新中…' : '立即更新') : null,
-      lastCheckHint),
+        updating ? React.createElement(Spinner, { size: 13 }) : null, updating ? '更新中…' : '立即更新') : null),
     updating ? React.createElement(UpdatingCard, { stage: progress?.stage, message: progress?.message, elapsedMs, tail }) : null,
     phase === 'done' ? React.createElement(ResultCard, { ok: true, message: updateResult || '更新完成，请手动重启 dsh。', tail }) : null,
     phase === 'failed' ? React.createElement(ResultCard, { ok: false, message: updateResult || '更新失败。', tail }) : null,
