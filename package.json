@@ -1,6 +1,6 @@
 {
   "name": "@dsh-external/dsh-update-checker",
-  "version": "0.7.6",
+  "version": "0.7.7",
   "description": "在设置页检查 npm 上 @deepseek-ai/dsh 官方最新版本，并与本地安装版本对比（host: webServer API + node fetch；client: settings.section 设置页）",
   "private": true,
   "type": "module",

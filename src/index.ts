@@ -1,6 +1,6 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, statSync } from 'node:fs'
 import { spawn } from 'node:child_process'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import type { Context } from 'cordis'
 export const name = 'dsh-update-checker'
 export const inject = ['webServer']
@@ -152,6 +152,14 @@ export function apply(ctx: Context): void {
   ctx.effect(() => ctx.webServer.register({ kind: 'prefix', path: '/dsh-update/api', handler: async (req: any, res: any) => {
     const p = (req.url ?? '/').split('?')[0]
     if (req.method === 'GET' && p.endsWith('/check')) { console.log('[dsh-update-check] /check 请求 @', new Date().toISOString()); const local = readLocalVersion(); const { latest, next, error } = await fetchDistTags(); const status = buildStatus(local, latest, next, error); const target = (latest && local && compare(local, latest) < 0) ? latest : next; const changelog = await fetchChangelog(target); return sendJson(res, 200, { ok: true, localVersion: local, latest, next, error, status, changelog }) }
+    /* /info：只读本机安装信息（不联网、不判断有无新版），因此不属于「自动检查」。
+     * 让一级页在从未点过「检查更新」时也能显示本机版本号与安装目录。 */
+    if (req.method === 'GET' && p.endsWith('/info')) {
+      const local = readLocalVersion()
+      let installed = false
+      try { installed = statSync(DSH_PKG).isFile() } catch { installed = false }
+      return sendJson(res, 200, { ok: true, localVersion: local, installed, installDir: installed ? dirname(DSH_PKG) : null, registry: 'registry.npmjs.org' })
+    }
     if (req.method === 'POST' && p.endsWith('/update')) {
       if (updateState.running) return sendJson(res, 200, { ok: false, error: '更新正在进行中，请稍候…' })
       // 先响应客户端，再后台跑 npm（避免白屏）；进度由 /update/status 轮询

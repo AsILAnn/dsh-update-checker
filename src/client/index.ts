@@ -101,6 +101,13 @@ function secsText(ms: number): string {
   return Math.floor(s / 60) + ' 分 ' + (s % 60) + ' 秒'
 }
 
+/** 绝对时间，形如 09-14 20:12 —— 一级页「检查于」用；只用相对时间过一天就糊了 */
+function clockText(t: number): string {
+  const d = new Date(t)
+  const p = (n: number) => (n < 10 ? '0' + n : String(n))
+  return p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes())
+}
+
 /** 更新进行中：一屏只有四件事 —— 阶段 / 读数 / 进度 / 时间（精确克制版） */
 function UpdatingCard({ stage, message, elapsedMs, tail }: { stage?: string; message?: string; elapsedMs: number; tail?: string[] }) {
   const pct = stagePercent(stage, elapsedMs)
@@ -198,6 +205,9 @@ let cacheStatus: any = null
 let lastCheckAt = 0
 /* 检查在途时间戳（0 = 空闲）。同样放模块级，重挂载后仍能挡住重复触发。 */
 let checkInFlight = 0
+/* 本机安装信息缓存（/info）：只含版本与目录，不含任何更新结论 */
+let cacheInfo: any = null
+let infoInFlight = false
 
 /**
  * 落盘：只从模块级缓存取值。
@@ -229,6 +239,7 @@ function UpdatePage() {
   const [tick, setTick] = React.useState(0)
   const [round, setRound] = React.useState(0) // 每次手动检查完成 +1：让结果区以 RiseIn 重新登场
   const [lastCheck, setLastCheck] = React.useState(lastCheckAt)
+  const [info, setInfo] = React.useState<any>(cacheInfo)
   const checkStart = React.useRef(0)
   const badgeColor = status?.code === 'outdated' ? BAD : status?.code === 'ahead' ? '#e5a13b' : OK
 
@@ -299,6 +310,23 @@ function UpdatePage() {
     if (t) { lastCheckAt = t; setLastCheck(t) }
     console.info("[dsh-update-checker] 恢复：data=" + (saved.data ? "yes" : "NO") + " status=" + ((saved.status && saved.status.code) || "NO") + " lastCheckAt=" + t + " build=" + (typeof __DUC_BUILD__ === "undefined" ? "?" : __DUC_BUILD__))
   }, [])
+  /* 读本机安装信息：/info 不联网、不下「有无新版」的结论，只陈述本机版本与目录，
+     因此不属于被禁止的自动检查。模块级缓存 + 在途标记，切走再回来也不重复请求。 */
+  React.useEffect(() => {
+    if (cacheInfo || infoInFlight) return
+    infoInFlight = true
+    let alive = true
+    fetch(API + '/info', { headers: { 'content-type': 'application/json' } })
+      .then(r => r.json())
+      .then((d: any) => {
+        infoInFlight = false
+        if (!alive || !d || !d.ok) return
+        cacheInfo = d; setInfo(d)
+      })
+      .catch(() => { infoInFlight = false })
+    return () => { alive = false }
+  }, [])
+
   /* 挂载时接续后台更新：刷新页面或切换设置页后，更新动画不会丢失 */
   React.useEffect(() => {
     let alive = true
@@ -374,20 +402,34 @@ function UpdatePage() {
   const checkBtn = React.createElement('button', { className: 'dsh-upd-btn', disabled: busy || updating, onClick: () => check() },
     busy ? React.createElement(Spinner, { size: 13 }) : null, busy ? '检查中…' : (entry || !data ? '检查更新' : '重新检查'))
 
-  /* ---------- 一级：入口态（对齐截图 1） ---------- */
+  /* ---------- 一级：入口态（读数 / 状态 / 动作，共三件事） ----------
+   * 0.7.7：版本读数与上次结论提到一级页。这些数据本来就在缓存里，
+   * 旧版只在二级页露出，于是一级页除了一个按钮什么都没有。 */
   if (entry) {
+    const shown = String((data && data.localVersion) || (info && info.localVersion) || '')
+    const checked = !!(status || data)
+    const outdated = !!(checked && status && status.code === 'outdated')
+    const note = checked
+      ? ((status ? status.label : '已有结果') + (lastCheck ? ' · 检查于 ' + clockText(lastCheck) + '（' + agoText(lastCheck) + '）' : ''))
+      : '尚未检查 · 点下方按钮对比官方最新版本'
     return React.createElement('div', { style: shell },
       styleTag, title, desc,
-      React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 14 } },
-        checkBtn),
-      hasResult ? React.createElement('div', { style: { marginTop: 2 } },
-        React.createElement('button', {
-          className: 'dsh-upd-link',
-          style: status?.code === 'outdated' ? { color: BAD } : undefined,
-          onClick: () => setView('result'),
-        }, '查看上次结果' + (status ? ' · ' + status.label : '') + (lastCheck ? ' · ' + agoText(lastCheck) : ''))) : null)
+      React.createElement('div', {
+        key: 'readout-' + (checked ? 'c' : 'n') + '-' + (shown || '-'),
+        className: 'dsh-upd-anim',
+        style: { marginTop: 24, animation: 'dshUpdRiseIn .2s cubic-bezier(.4,0,.2,1)' },
+      },
+        React.createElement('div', { className: 'dsh-upd-ink3', style: { fontSize: 11, letterSpacing: '0.1em', marginBottom: 8 } }, '本机版本'),
+        React.createElement('div', { style: { fontSize: 28, fontWeight: 500, lineHeight: 1.15, letterSpacing: '-0.02em', fontFamily: MONO, fontVariantNumeric: 'tabular-nums', color: shown ? undefined : 'var(--dsw-alias-label-tertiary,#a2a4a6)' } }, shown || '未获取'),
+        React.createElement('div', {
+          className: outdated ? undefined : 'dsh-upd-ink2',
+          style: { fontSize: 12, marginTop: 8, color: outdated ? BAD : undefined },
+          title: info && info.installDir ? '安装目录：' + info.installDir : undefined,
+        }, note)),
+      React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 24 } },
+        checkBtn,
+        hasResult ? React.createElement('button', { className: 'dsh-upd-link', onClick: () => setView('result') }, '查看上次结果 →') : null))
   }
-
   /* ---------- 二级：结果态（对齐截图 2） ---------- */
   return React.createElement('div', { style: shell },
     styleTag,
